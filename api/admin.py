@@ -7,6 +7,7 @@ bp = Blueprint("admin", __name__, url_prefix="/{}".format(os.environ.get("ADMIN_
 @bp.route("/mapping/mission_type", methods=["POST"])
 def add_mission_type_mapping():
     mission_type_mapping: dict = request.json
+    current_app.config["mission_type"] = mission_type_mapping
     with open("{}/mission_type.json".format(current_app.instance_path), "w") as f:
         json.dump(mission_type_mapping, f)
 
@@ -20,6 +21,7 @@ def add_mission_type_mapping():
 @bp.route("/mapping/character", methods=["POST"])
 def add_character_mapping():
     character_mapping: dict = request.json
+    current_app.config["character"] = character_mapping
     with open("{}/character.json".format(current_app.instance_path), "w") as f:
         json.dump(character_mapping, f)
 
