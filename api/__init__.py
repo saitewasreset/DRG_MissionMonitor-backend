@@ -99,4 +99,7 @@ def create_app() -> Flask:
     from . import general
     app.register_blueprint(general.bp)
 
+    from . import damage
+    app.register_blueprint(damage.bp)
+
     return app
