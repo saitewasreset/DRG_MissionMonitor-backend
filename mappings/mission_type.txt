@@ -6,3 +6,4 @@ OBJ_1st_Gather_AlienEggs|虫蛋收集
 OBJ_1st_Refinery|就地精炼
 OBJ_1st_Salvage|搜救行动
 OBJ_1st_DeepScan|深层扫描
+OBJ_Eliminate_Eggs|消灭任务
