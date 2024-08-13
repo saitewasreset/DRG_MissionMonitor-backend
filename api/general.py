@@ -510,3 +510,30 @@ def get_mission_player_info():
             "playerData": result
         }
     }
+
+@bp.route("/character_info", methods=["GET"])
+def get_character_info():
+    db = get_db()
+    cursor = db.cursor()
+
+    character_count_sql = ("SELECT hero_game_id, COUNT(hero_game_id) "
+                           "FROM player_info "
+                           "INNER JOIN hero "
+                           "ON hero.hero_id = player_info.hero_id "
+                           "AND mission_id NOT IN "
+                           "(SELECT mission_id FROM mission_invalid) "
+                           "GROUP BY hero_game_id")
+    cursor.execute(character_count_sql)
+
+    result = {x: y for (x, y) in cursor.fetchall()}
+
+    character_mapping = current_app.config["character"]
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "characterCount": result,
+            "characterMapping": character_mapping
+        }
+    }
