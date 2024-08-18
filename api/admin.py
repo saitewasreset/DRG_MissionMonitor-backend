@@ -383,7 +383,7 @@ def load_mission():
             if record_present_time == 0:
                 present_time = mission_time
             else:
-                present_time = record_present_time + record_left_time - record_join_time
+                present_time = record_present_time
 
             player_kill_num = int(player_info_split[8])
             player_revived_num = int(player_info_split[9])
@@ -599,7 +599,6 @@ def load_mission():
 
         return mission_id
 
-
     db = get_db()
 
     load_hero(db)
@@ -611,7 +610,8 @@ def load_mission():
 
     data: list[str] = request.json
     last_mission_id = None
-    for mission_log in data:
+    for timestamp_str, mission_log in data:
+        current_app.logger.warning("Loading mission: {}".format(timestamp_str))
         last_mission_id = _load_mission(db, mission_log, last_mission_id)
 
     db.commit()
