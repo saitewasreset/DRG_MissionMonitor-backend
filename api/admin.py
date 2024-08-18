@@ -357,7 +357,7 @@ def load_mission():
         for player_info_line in player_info_list.split("\n"):
             if player_info_line == "":
                 continue
-            player_info_split = player_info_line.split("|")
+            player_info_split: list[str] = player_info_line.split("|")
 
             # {player}|{hero}|{PlayerRank}|{CharacterRank}|{CharacterPromotionTimes}|{join}|{left}|{present}|{Kills}|{Revived}|{Deaths}|{GoldMined}|{MineralsMined}|{XPGained}|{Escaped}|{PresentAtEnd}
 
@@ -378,7 +378,7 @@ def load_mission():
 
             record_join_time = int(player_info_split[5])
             record_left_time = int(player_info_split[6])
-            record_present_time = int(player_info_split[7])
+            record_present_time = int(player_info_split[7].replace(",", ""))
 
             if record_present_time == 0:
                 present_time = mission_time
