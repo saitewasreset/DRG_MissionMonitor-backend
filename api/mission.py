@@ -45,7 +45,10 @@ def get_mission_list():
     return {
         "code": 200,
         "message": "Success",
-        "data": result
+        "data": {
+            "missionInfo": result,
+            "missionTypeMapping": current_app.config["mission_type"]
+        }
     }
 
 
