@@ -15,7 +15,6 @@ ED_FlyingSmartRock|飞石
 ED_Grabber|捕手异虫蝇
 ED_GreatEggHunt_SpringBunny|春日兔兔
 ED_Halloween_Skull|万圣节头骨
-ED_HydraWeed|科洛克王草
 ED_InfectedMule|BET-C
 ED_InfestationLarva|肉食幼虫
 ED_InsectSwarm_Spawner|雷鸣蜂巢
@@ -105,3 +104,6 @@ ED_Spider_Swarmer_Radioactive|蜂拥异虫
 ED_Spider_Tank_Normal|禁卫异虫
 ED_Spider_Boss_HeavySpawn|哨卫异虫
 ED_Spider_Swarmer_Pheromoned|蜂拥异虫
+ED_HydraWeed_Core|科洛克王草
+ED_ShootingPlant_Small|科洛克新芽
+ED_SmallShootingPlant_RegenPod|科洛克治疗荚实
