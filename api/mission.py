@@ -321,6 +321,10 @@ def get_mission_damage(mission_id: int):
         data = []
 
     for causer_id, taker_id, damage in data:
+
+        if causer_id not in player_id_list or taker_id not in player_id_list:
+            continue
+
         causer_name = player_id_to_name[causer_id]
         taker_name = player_id_to_name[taker_id]
 
@@ -559,6 +563,17 @@ def get_mission_kpi(mission_id: int):
     kpi_info: dict[str, any] = current_app.config["kpi"]
     entity_black_list: dict[str, str] = current_app.config["entity_blacklist"]
 
+    character_factor_name = ["kill", "damage", "nitra", "minerals"]
+    character_factor = {
+        "DRILLER": [1.682, 1.174, 1.000, 1.000],
+        "GUNNER": [1.682, 1.357, 1.196, 1.092],
+        "ENGINEER": [2.848, 2.204, 1.696, 1.378],
+        "SCOUT": [1.000, 1.000, 3.000, 2.612],
+    }
+
+    mission_factor = []
+    standard_factor = []
+
     player_info_sql = ("SELECT player_info.player_id, player_name, hero_game_id, revive_num, death_num "
                        "FROM player_info "
                        "INNER JOIN player "
@@ -575,6 +590,20 @@ def get_mission_kpi(mission_id: int):
             "code": 404,
             "message": "Mission not found(id = {})".format(mission_id)
         }
+
+    character_list = [x[2] for x in player_info]
+
+    for i in range(len(character_factor_name)):
+        standard_factor_sum = 0.0
+        for character_game_id in character_factor.keys():
+            standard_factor_sum += character_factor[character_game_id][i]
+        standard_factor.append(standard_factor_sum)
+
+    for i in range(len(character_factor_name)):
+        mission_factor_sum = 0.0
+        for character_game_id in character_list:
+            mission_factor_sum += character_factor[character_game_id][i]
+        mission_factor.append(mission_factor_sum / standard_factor[i])
 
     overall_damage_sql = ("SELECT entity_game_id, SUM(damage) "
                           "FROM damage "
@@ -732,13 +761,16 @@ def get_mission_kpi(mission_id: int):
             subtype_component_list.append({
                 "name": "击杀数指数",
                 "weight": subtype_info["weightList"][0],
-                "value": 0.0 if overall_weighted_kill == 0 else player_weighted_kill / overall_weighted_kill,
+                "value": 0.0 if overall_weighted_kill == 0 else
+                min(player_weighted_kill / overall_weighted_kill * mission_factor[0], 1.0),
                 "sourceThis": player_weighted_kill,
                 "sourceTotal": overall_weighted_kill
             })
 
             max_possible_weighted_sum += subtype_info["weightList"][0] * 1.0
-            weighted_sum += subtype_info["weightList"][0] * (0.0 if overall_weighted_kill == 0 else player_weighted_kill / overall_weighted_kill)
+            weighted_sum += subtype_info["weightList"][0] * (
+                0.0 if overall_weighted_kill == 0 else
+                min(player_weighted_kill / overall_weighted_kill * mission_factor[0], 1.0))
 
             player_weighted_damage = apply_weight_table(player_damage, subtype_info["priorityTable"])
             overall_weighted_damage = apply_weight_table(overall_damage, subtype_info["priorityTable"])
@@ -747,14 +779,17 @@ def get_mission_kpi(mission_id: int):
                 {
                     "name": "输出指数",
                     "weight": subtype_info["weightList"][1],
-                    "value": 0.0 if overall_weighted_damage == 0 else player_weighted_damage / overall_weighted_damage,
+                    "value": 0.0 if overall_weighted_damage == 0 else
+                    min(player_weighted_damage / overall_weighted_damage * mission_factor[1], 1),
                     "sourceThis": player_weighted_damage,
                     "sourceTotal": overall_weighted_damage
                 }
             )
 
             max_possible_weighted_sum += subtype_info["weightList"][1] * 1.0
-            weighted_sum += subtype_info["weightList"][1] * (0.0 if overall_weighted_damage == 0 else player_weighted_damage / overall_weighted_damage)
+            weighted_sum += subtype_info["weightList"][1] * (0.0 if overall_weighted_damage == 0 else
+                                                             min(player_weighted_damage / overall_weighted_damage *
+                                                                 mission_factor[1], 1))
 
             player_priority_damage = apply_weight_table(player_damage, kpi_info["priorityTable"])
 
@@ -769,7 +804,8 @@ def get_mission_kpi(mission_id: int):
             )
 
             max_possible_weighted_sum += subtype_info["weightList"][2] * 1.0
-            weighted_sum += subtype_info["weightList"][2] * (0.0 if overall_priority_damage == 0 else player_priority_damage / overall_priority_damage)
+            weighted_sum += subtype_info["weightList"][2] * (
+                0.0 if overall_priority_damage == 0 else player_priority_damage / overall_priority_damage)
 
             subtype_component_list.append(
                 {
@@ -782,7 +818,8 @@ def get_mission_kpi(mission_id: int):
             )
 
             max_possible_weighted_sum += subtype_info["weightList"][3] * 1.0
-            weighted_sum += subtype_info["weightList"][3] * (1.0 if total_revive_num == 0 else revive_num / total_revive_num)
+            weighted_sum += subtype_info["weightList"][3] * (
+                1.0 if total_revive_num == 0 else revive_num / total_revive_num)
 
             subtype_component_list.append(
                 {
@@ -794,7 +831,8 @@ def get_mission_kpi(mission_id: int):
                 }
             )
 
-            weighted_sum += subtype_info["weightList"][4] * (0.0 if total_death_num == 0 else -death_num / total_death_num)
+            weighted_sum += subtype_info["weightList"][4] * (
+                0.0 if total_death_num == 0 else -death_num / total_death_num)
 
             subtype_component_list.append(
                 {
@@ -807,20 +845,24 @@ def get_mission_kpi(mission_id: int):
             )
 
             max_possible_weighted_sum += subtype_info["weightList"][5] * 1.0
-            weighted_sum += subtype_info["weightList"][5] * get_ff_index(player_ff, apply_weight_table(player_damage, {"default": 1}))
+            weighted_sum += subtype_info["weightList"][5] * get_ff_index(player_ff, apply_weight_table(player_damage,
+                                                                                                       {"default": 1}))
 
             subtype_component_list.append(
                 {
                     "name": "硝石指数",
                     "weight": subtype_info["weightList"][6],
-                    "value": 0.0 if overall_nitra == 0 else player_resource.get("RES_VEIN_Nitra", 0.0) / overall_nitra,
+                    "value": 0.0 if overall_nitra == 0 else
+                    min(player_resource.get("RES_VEIN_Nitra", 0.0) / overall_nitra * mission_factor[2], 1),
                     "sourceThis": player_resource.get("RES_VEIN_Nitra", 0.0),
                     "sourceTotal": overall_nitra
                 }
             )
 
             max_possible_weighted_sum += subtype_info["weightList"][6] * 1.0
-            weighted_sum += subtype_info["weightList"][6] * (0.0 if overall_nitra == 0 else player_resource.get("RES_VEIN_Nitra", 0.0) / overall_nitra)
+            weighted_sum += subtype_info["weightList"][6] * (
+                0.0 if overall_nitra == 0 else
+                min(player_resource.get("RES_VEIN_Nitra", 0.0) / overall_nitra * mission_factor[2], 1))
 
             subtype_component_list.append(
                 {
@@ -832,18 +874,21 @@ def get_mission_kpi(mission_id: int):
                 }
             )
 
-            weighted_sum += subtype_info["weightList"][7] * (0.0 if overall_supply == 0 else -player_supply / overall_supply)
+            weighted_sum += subtype_info["weightList"][7] * (
+                0.0 if overall_supply == 0 else -player_supply / overall_supply)
 
             subtype_component_list.append({
                 "name": "采集指数",
                 "weight": subtype_info["weightList"][8],
-                "value": 0.0 if overall_minerals == 0 else player_resource_total / overall_minerals,
+                "value": 0.0 if overall_minerals == 0 else
+                min(player_resource_total / overall_minerals * mission_factor[3], 1),
                 "sourceThis": player_resource_total,
                 "sourceTotal": overall_minerals
             })
 
             max_possible_weighted_sum += subtype_info["weightList"][8] * 1.0
-            weighted_sum += subtype_info["weightList"][8] * (0.0 if overall_minerals == 0 else player_resource_total / overall_minerals)
+            weighted_sum += subtype_info["weightList"][8] * (
+                0.0 if overall_minerals == 0 else min(player_resource_total / overall_minerals * mission_factor[3], 1))
 
             result.append(
                 {
