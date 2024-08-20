@@ -216,6 +216,7 @@ def get_general_info():
             recent_death_num_per_player += mission_id_to_death_num[mission_id] / mission_id_to_player_count[mission_id]
             recent_supply_count_per_player += mission_id_to_supply_count[mission_id] / mission_id_to_player_count[mission_id]
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     total_kill_num = 0
     prev_kill_num = 0
@@ -234,6 +235,7 @@ def get_general_info():
         kill_data = []
 
     for mission_id, entity_game_id in kill_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id not in entity_blacklist:
             total_kill_num += 1
             if mission_id in prev_mission_id_list:
@@ -280,6 +282,7 @@ def get_general_info():
     mission_id_to_damage: dict[int, float] = {}
 
     for mission_id, entity_game_id, damage in damage_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id not in entity_blacklist:
             if mission_id not in mission_id_to_damage:
                 mission_id_to_damage[mission_id] = damage

@@ -35,6 +35,12 @@ def create_app() -> Flask:
         app.config["weapon_combine"] = {}
 
     try:
+        with open("{}/entity_combine.json".format(app.instance_path), "r") as f:
+            app.config["entity_combine"] = json.load(f)
+    except OSError:
+        app.config["entity_combine"] = {}
+
+    try:
         with open("{}/weapon_hero.json".format(app.instance_path), "r") as f:
             app.config["weapon_hero"] = json.load(f)
     except OSError:

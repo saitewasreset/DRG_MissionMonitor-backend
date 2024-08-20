@@ -23,6 +23,7 @@ def get_damage():
     result = {}
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     for player_id in player_id_list:
         player_kill_map = {}
@@ -39,6 +40,7 @@ def get_damage():
         if data is None:
             data = []
         for entity_game_id, kill_count in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             player_kill_map[entity_game_id] = kill_count
@@ -60,6 +62,7 @@ def get_damage():
         if data is None:
             data = []
         for combined_damage, entity_game_id in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             player_damage_map[entity_game_id] = combined_damage
@@ -187,6 +190,7 @@ def get_damage_by_weapon():
     cursor = db.cursor()
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     damage_weapon_sql = ("SELECT damage.mission_id, entity_game_id, weapon_game_id, damage "
                          "FROM damage "
@@ -212,6 +216,7 @@ def get_damage_by_weapon():
     weapon_mission_id_set = {}
 
     for mission_id, entity_game_id, weapon_game_id, damage in data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id in entity_blacklist:
             continue
 
@@ -273,6 +278,7 @@ def get_damage_by_character():
     character_mapping: dict[str, str] = current_app.config["character"]
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     mission_player_hero_sql = ("SELECT mission_id, player_id, hero_game_id "
                                "FROM player_info "
@@ -309,6 +315,7 @@ def get_damage_by_character():
     character_damage = {}
 
     for mission_id, causer_id, entity_game_id, damage in damage_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id in entity_blacklist:
             continue
 

@@ -59,6 +59,19 @@ def add_entity_mapping():
         "data": {}
     }
 
+@bp.route("/mapping/entity_combine", methods=["POST"])
+def add_entity_combine():
+    entity_combine: dict[str, str] = request.json
+    current_app.config["entity_combine"] = entity_combine
+    with open("{}/entity_combine.json".format(current_app.instance_path), "w") as f:
+        json.dump(entity_combine, f)
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {}
+    }
+
 @bp.route("/mapping/resource", methods=["POST"])
 def add_resource_mapping():
     resource_mapping: dict = request.json
@@ -97,6 +110,7 @@ def add_weapon_combine():
         "message": "Success",
         "data": {}
     }
+
 
 @bp.route("/mapping/weapon_hero", methods=["POST"])
 def add_weapon_hero():

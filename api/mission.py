@@ -118,6 +118,7 @@ def get_mission_general(mission_id: int):
                             "GROUP BY entity_game_id")
 
         entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+        entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
         cursor.execute(total_damage_sql, (mission_id,))
 
@@ -128,6 +129,7 @@ def get_mission_general(mission_id: int):
             data = []
 
         for combined_damage, entity_game_id in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             total_damage += combined_damage
@@ -148,6 +150,7 @@ def get_mission_general(mission_id: int):
             data = []
 
         for entity_game_id, kill_count in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             total_kill += kill_count
@@ -260,6 +263,7 @@ def get_mission_damage(mission_id: int):
     result = {}
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     for player_id in player_id_list:
         player_kill_map = {}
@@ -275,6 +279,7 @@ def get_mission_damage(mission_id: int):
         if data is None:
             data = []
         for entity_game_id, kill_count in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             player_kill_map[entity_game_id] = kill_count
@@ -295,6 +300,7 @@ def get_mission_damage(mission_id: int):
         if data is None:
             data = []
         for combined_damage, entity_game_id in data:
+            entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
             player_damage_map[entity_game_id] = combined_damage
@@ -382,6 +388,7 @@ def get_damage_by_weapon(mission_id: int):
         }
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     damage_weapon_sql = ("SELECT entity_game_id, weapon_game_id, damage "
                          "FROM damage "
@@ -405,6 +412,7 @@ def get_damage_by_weapon(mission_id: int):
     weapon_hero: dict[str, str] = current_app.config["weapon_hero"]
 
     for entity_game_id, weapon_game_id, damage in data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id in entity_blacklist:
             continue
 
@@ -537,8 +545,10 @@ def get_mission_resource(mission_id: int):
 
 def apply_weight_table(source_table: dict[str, float], weight_table: dict[str, float]) -> float:
     entity_black_list: dict[str, str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
     result = 0.0
     for entity_game_id, damage in source_table.items():
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
         if entity_game_id in entity_black_list:
             continue
         result += damage * weight_table.get(entity_game_id, weight_table["default"])
@@ -562,6 +572,7 @@ def get_mission_kpi(mission_id: int):
 
     kpi_info: dict[str, any] = current_app.config["kpi"]
     entity_black_list: dict[str, str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
     character_factor_name = ["kill", "damage", "nitra", "minerals"]
     character_factor = {
