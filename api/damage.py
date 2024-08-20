@@ -1,6 +1,8 @@
 from flask import Blueprint, current_app
 from api.db import get_db
 
+from api.general import get_character_valid_count
+
 bp = Blueprint("damage", __name__, url_prefix="/damage")
 
 @bp.route("", methods=["GET"])
@@ -279,6 +281,8 @@ def get_damage_by_character():
                                "(SELECT mission_id FROM mission_invalid)")
     cursor.execute(mission_player_hero_sql)
 
+    character_to_valid_count = get_character_valid_count(db)
+
     data: list[tuple[int, int, str]] = cursor.fetchall()
 
     if data is None:
@@ -302,16 +306,18 @@ def get_damage_by_character():
 
     damage_data: list[tuple[int, int, str, float]] = cursor.fetchall()
 
-    character_mission_id_set = {}
     character_damage = {}
 
     for mission_id, causer_id, entity_game_id, damage in damage_data:
         if entity_game_id in entity_blacklist:
             continue
 
+        # if causer_id not in player_info for this mission(e.g. manually removed), skip calculation
+        if causer_id not in mission_player_hero[mission_id]:
+            continue
+
         causer_character = mission_player_hero[mission_id][causer_id]
 
-        character_mission_id_set.setdefault(causer_character, set()).add(mission_id)
         if causer_character not in character_damage:
             character_damage[causer_character] = {}
             character_damage[causer_character]["damage"] = damage
@@ -333,6 +339,11 @@ def get_damage_by_character():
     ff_data: list[tuple[int, int, int, float]] = cursor.fetchall()
 
     for mission_id, causer_id, taker_id, damage in ff_data:
+
+        # if causer_id / taker_id not in player_info for this mission(e.g. manually removed), skip calculation
+        if causer_id not in mission_player_hero[mission_id] or taker_id not in mission_player_hero[mission_id]:
+            continue
+
         causer_character = mission_player_hero[mission_id][causer_id]
         taker_character = mission_player_hero[mission_id][taker_id]
         if causer_character not in character_damage:
@@ -345,8 +356,8 @@ def get_damage_by_character():
         character_damage[causer_character]["friendlyFire"]["cause"] += damage
         character_damage[taker_character]["friendlyFire"]["take"] += damage
 
-    for character, mission_id_set in character_mission_id_set.items():
-        character_damage[character]["validGameCount"] = len(mission_id_set)
+    for character, valid_count in character_to_valid_count.items():
+        character_damage[character]["validGameCount"] = valid_count
         character_damage[character]["mappedName"] = character_mapping.get(character, character)
 
     return {

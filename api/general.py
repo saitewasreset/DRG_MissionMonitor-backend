@@ -1,3 +1,4 @@
+import mariadb
 from flask import Blueprint, current_app
 from api.db import get_db
 
@@ -511,6 +512,32 @@ def get_mission_player_info():
         }
     }
 
+
+def get_character_valid_count(db: mariadb.Connection):
+    cursor = db.cursor()
+    character_game_count_sql = ("SELECT hero_game_id, present_time, mission_time "
+                                "FROM player_info "
+                                "INNER JOIN mission "
+                                "ON player_info.mission_id = mission.mission_id "
+                                "INNER JOIN hero "
+                                "ON player_info.hero_id = hero.hero_id "
+                                "WHERE player_info.mission_id NOT IN "
+                                "(SELECT mission_id FROM mission_invalid)")
+
+    cursor.execute(character_game_count_sql)
+
+    game_count_data: list[tuple[str, int, int]] = cursor.fetchall()
+
+    character_to_game_count: dict[str, float] = {}
+
+    for character_game_id, present_time, mission_time in game_count_data:
+        if present_time == 0:
+            present_time = mission_time
+        character_to_game_count[character_game_id] = (
+                character_to_game_count.get(character_game_id, 0) + present_time / mission_time)
+
+    return character_to_game_count
+
 @bp.route("/character_info", methods=["GET"])
 def get_character_info():
     db = get_db()
@@ -535,5 +562,70 @@ def get_character_info():
         "data": {
             "characterCount": result,
             "characterMapping": character_mapping
+        }
+    }
+
+@bp.route("/character", methods=["GET"])
+def get_character_general():
+    db = get_db()
+
+    character_to_valid_count: dict[str, float] = get_character_valid_count(db)
+
+    cursor = db.cursor()
+
+    character_info: dict[str, dict] = {}
+
+    character_info_sql = ("SELECT hero_game_id, SUM(revive_num), SUM(death_num), SUM(minerals_mined) "
+                          "FROM player_info "
+                          "INNER JOIN hero "
+                          "ON hero.hero_id = player_info.hero_id "
+                          "WHERE mission_id NOT IN "
+                          "(SELECT mission_id FROM mission_invalid) "
+                          "GROUP BY hero_game_id")
+
+    cursor.execute(character_info_sql)
+
+    character_info_data: list[tuple[str, int, int, float]] = cursor.fetchall()
+
+    for hero_game_id, revive_num, death_num, minerals_mined in character_info_data:
+        character_info[hero_game_id] = {
+            "validCount": character_to_valid_count.get(hero_game_id, 0),
+            "reviveNum": revive_num,
+            "deathNum": death_num,
+            "mineralsMined": minerals_mined,
+        }
+
+    character_supply_sql = ("SELECT hero_game_id, ammo "
+                            "FROM supply_info "
+                            "INNER JOIN player_info "
+                            "ON supply_info.mission_id = player_info.mission_id "
+                            "AND supply_info.player_id = player_info.player_id "
+                            "INNER JOIN hero "
+                            "ON player_info.hero_id = hero.hero_id "
+                            "WHERE supply_info.mission_id NOT IN "
+                            "(SELECT mission_id FROM mission_invalid)")
+
+    cursor.execute(character_supply_sql)
+
+    character_supply_data: list[tuple[str, float]] = cursor.fetchall()
+
+    character_to_supply_list: dict[str, list[float]] = {}
+
+    for hero_game_id, ammo in character_supply_data:
+        if hero_game_id not in character_to_supply_list:
+            character_to_supply_list[hero_game_id] = [ammo]
+        else:
+            character_to_supply_list[hero_game_id].append(ammo)
+
+    for hero_game_id, ammo_list in character_to_supply_list.items():
+        character_info[hero_game_id]["supplyCount"] = len(ammo_list)
+        character_info[hero_game_id]["supplyEfficiency"] = 2 * sum(ammo_list) / len(ammo_list)
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "characterInfo": character_info,
+            "characterMapping": current_app.config["character"]
         }
     }
