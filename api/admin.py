@@ -1,10 +1,13 @@
 from flask import Blueprint, current_app, request
-from api.db import get_db
+from api.db import get_db, get_redis
+from api.cache import update_gamma, kpi_update_character_factor, kpi_update_player_kpi
 import json
 import os
 import re
+import time
 
 bp = Blueprint("admin", __name__, url_prefix="/{}".format(os.environ.get("ADMIN_PREFIX", "admin")))
+
 
 @bp.route("/mapping/mission_type", methods=["POST"])
 def add_mission_type_mapping():
@@ -678,4 +681,26 @@ def load_hero():
         "code": 200,
         "message": "Success",
         "data": {}
+    }
+
+@bp.route("/update_essential", methods=["GET"])
+def update_essential():
+    begin_time = time.time()
+    db = get_db()
+    r = get_redis()
+    entity_blacklist = current_app.config["entity_blacklist"]
+    entity_combine = current_app.config["entity_combine"]
+    kpi_config = current_app.config["kpi"]
+
+    update_gamma(db, r, entity_blacklist)
+    kpi_update_character_factor(db, r, entity_blacklist, entity_combine, kpi_config)
+    kpi_update_player_kpi(db, r, entity_blacklist, entity_combine, kpi_config)
+
+    end_time = time.time()
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "time_ms": (end_time - begin_time) * 1000
+        }
     }

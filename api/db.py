@@ -1,4 +1,5 @@
 import mariadb
+import redis
 from flask import current_app, g, Flask
 
 
@@ -16,12 +17,27 @@ def get_db() -> mariadb.Connection:
     return g.db
 
 
+def get_redis() -> redis.client.Redis:
+    if "redis" not in g:
+        g.redis = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+    return g.redis
+
+
+
 def close_db(e=None):
     db: mariadb.Connection | None = g.pop("db", None)
 
     if db is not None:
         db.close()
 
+def close_redis(e=None):
+    redis_conn: redis.client.Redis | None = g.pop("redis", None)
+
+    if redis_conn is not None:
+        redis_conn.close()
+
 
 def init_app(app: Flask):
     app.teardown_appcontext(close_db)
+    app.teardown_appcontext(close_redis)

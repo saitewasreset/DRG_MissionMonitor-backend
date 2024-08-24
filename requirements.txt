@@ -10,3 +10,4 @@ MarkupSafe
 packaging
 Werkzeug
 numpy
+redis
