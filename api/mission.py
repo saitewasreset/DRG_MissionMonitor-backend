@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app
-from api.db import get_db
-from api.kpi import calc_mission_kpi
+from api.db import get_db, get_redis
+from api.tools import calc_mission_kpi
+from api.cache import get_gamma_cached
 
 bp = Blueprint("mission", __name__, url_prefix="/mission")
 
@@ -550,8 +551,11 @@ def get_mission_resource(mission_id: int):
 @bp.route("/<int:mission_id>/kpi", methods=["GET"])
 def get_mission_kpi(mission_id: int):
     db = get_db()
+    r = get_redis()
 
     cursor = db.cursor()
+
+    gamma_info = get_gamma_cached(db, r, current_app.config["entity_blacklist"])
 
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
     entity_combine: dict[str, str] = current_app.config["entity_combine"]
@@ -575,7 +579,7 @@ def get_mission_kpi(mission_id: int):
 
     kpi_info: dict[str, any] = current_app.config["kpi"]
 
-    result = calc_mission_kpi(db, kpi_info, mission_id, entity_blacklist, entity_combine)
+    result = calc_mission_kpi(db, r, kpi_info, mission_id, entity_blacklist, entity_combine, gamma_info)
 
     return {
         "code": 200,
