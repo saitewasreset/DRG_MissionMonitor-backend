@@ -107,3 +107,4 @@ ED_Spider_Swarmer_Pheromoned|蜂拥异虫
 ED_HydraWeed_Core|科洛克王草
 ED_ShootingPlant_Small|科洛克新芽
 ED_SmallShootingPlant_RegenPod|科洛克治疗荚实
+ED_TentacleNode|瓦托克鳞甲荆节
