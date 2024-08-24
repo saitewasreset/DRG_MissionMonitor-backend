@@ -82,6 +82,8 @@ def create_app() -> Flask:
     except OSError:
         app.config["character"] = {}
 
+    app.config["scout_type_b_player_name"] = ["OHHHH", "火鸡味锅巴", "historia", "KhasAlushird"]
+
     try:
         os.makedirs(app.instance_path)
     except OSError:
