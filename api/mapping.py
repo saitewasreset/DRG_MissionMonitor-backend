@@ -5,24 +5,23 @@ bp = Blueprint("mapping", __name__, url_prefix="/mapping")
 
 @bp.route("/", methods=["GET"])
 def get_mappings():
-    mission_type_mapping = load_mapping("mission_type")
-    character_mapping = load_mapping("character")
-    weapon_mapping = load_mapping("weapon")
-    entity_mapping = load_mapping("entity")
-    resource_mapping = load_mapping("resource")
-
-    data = {
-        "missionType": mission_type_mapping,
-        "character": character_mapping,
-        "weapon": weapon_mapping,
-        "entity": entity_mapping,
-        "resource": resource_mapping
+    result = {
+        "entity": current_app.config["entity"],
+        "entityBlacklist": current_app.config["entity_blacklist"],
+        "entityCombine": current_app.config["entity_combine"],
+        "weaponCombine": current_app.config["weapon_combine"],
+        "weaponHero": current_app.config["weapon_hero"],
+        "weapon": current_app.config["weapon"],
+        "resource": current_app.config["resource"],
+        "kpi": current_app.config["kpi"],
+        "missionType": current_app.config["mission_type"],
+        "character": current_app.config["character"]
     }
 
     return {
         "code": 200,
         "message": "Success",
-        "data": data
+        "data": result
     }
 
 def load_mapping(mapping_name: str) -> dict:
