@@ -52,7 +52,39 @@ def get_mission_list():
             "missionTypeMapping": current_app.config["mission_type"]
         }
     }
+@bp.route("/<int:mission_id>/info", methods=["GET"])
+def get_mission_general_info(mission_id: int):
+    db = get_db()
+    cursor = db.cursor()
 
+    invalid_mission_sql = "SELECT mission_id, reason FROM mission_invalid"
+
+    cursor.execute(invalid_mission_sql)
+
+    invalid_mission: dict[int, str] = {x[0]: x[1] for x in cursor.fetchall()}
+
+    mission_timestamp_sql = "SELECT begin_timestamp FROM mission WHERE mission_id = ?"
+    cursor.execute(mission_timestamp_sql, (mission_id,))
+
+    mission_timestamp = cursor.fetchone()
+
+    if mission_timestamp is None:
+        return {
+            "code": 404,
+            "message": "Mission not found(id = {})".format(mission_id)
+        }
+
+    mission_timestamp = mission_timestamp[0]
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "missionInvalid": mission_id in invalid_mission,
+            "missionInvalidReason": invalid_mission.get(mission_id, ""),
+            "missionBeginTimestamp": mission_timestamp
+        }
+    }
 
 @bp.route("/<int:mission_id>/basic", methods=["GET"])
 def get_mission_basic_info(mission_id: int):
