@@ -82,7 +82,8 @@ def create_app() -> Flask:
     except OSError:
         app.config["character"] = {}
 
-    app.config["scout_type_b_player_name"] = ["OHHHH", "火鸡味锅巴", "historia", "KhasAlushird"]
+    app.config["scout_type_b_player_name"] = \
+        ["OHHHH", "火鸡味锅巴", "historia", "KhasAlushird"]
 
     try:
         os.makedirs(app.instance_path)
@@ -109,5 +110,8 @@ def create_app() -> Flask:
 
     from . import damage
     app.register_blueprint(damage.bp)
+
+    from . import info
+    app.register_blueprint(info.bp)
 
     return app
