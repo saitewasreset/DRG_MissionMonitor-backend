@@ -316,7 +316,8 @@ def get_mission_damage(mission_id: int):
             entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
-            player_kill_map[entity_game_id] = kill_count
+            player_kill_map.setdefault(entity_game_id, 0)
+            player_kill_map[entity_game_id] += kill_count
 
         player_damage_map = {}
         player_damage_sql = ("SELECT SUM(damage), entity_game_id "
@@ -337,7 +338,8 @@ def get_mission_damage(mission_id: int):
             entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
-            player_damage_map[entity_game_id] = combined_damage
+            player_damage_map.setdefault(entity_game_id, 0)
+            player_damage_map[entity_game_id] += combined_damage
         result[player_id_to_name[player_id]] = {
             "kill": player_kill_map,
             "damage": player_damage_map,

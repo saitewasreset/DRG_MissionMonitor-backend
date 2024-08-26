@@ -43,7 +43,8 @@ def get_damage():
             entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
-            player_kill_map[entity_game_id] = kill_count
+            player_kill_map.setdefault(entity_game_id, 0)
+            player_kill_map[entity_game_id] += kill_count
 
         player_damage_map = {}
         player_damage_sql = ("SELECT SUM(damage), entity_game_id "
@@ -65,7 +66,8 @@ def get_damage():
             entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
             if entity_game_id in entity_blacklist:
                 continue
-            player_damage_map[entity_game_id] = combined_damage
+            player_damage_map.setdefault(entity_game_id, 0)
+            player_damage_map[entity_game_id] += combined_damage
 
         valid_player_game_count = ("SELECT COUNT(mission_id) "
                                    "FROM player_info "
@@ -371,4 +373,69 @@ def get_damage_by_character():
         "code": 200,
         "message": "Success",
         "data": character_damage
+    }
+
+@bp.route("/entity", methods=["GET"])
+def get_damage_by_entity():
+    db = get_db()
+    cursor = db.cursor()
+
+    entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
+
+    entity_mapping: dict[str, str] = current_app.config["entity"]
+
+    damage_sql = ("SELECT entity_game_id, SUM(damage) "
+                  "FROM damage "
+                  "INNER JOIN entity "
+                  "ON entity.entity_id = damage.taker_id "
+                  "WHERE mission_id NOT IN "
+                  "(SELECT mission_id FROM mission_invalid) "
+                  "AND causer_type = 1 "
+                  "AND taker_type != 1 "
+                  "GROUP BY entity_game_id")
+
+    cursor.execute(damage_sql)
+
+    damage_data: list[tuple[str, float]] = cursor.fetchall()
+
+    entity_damage = {}
+
+    for entity_game_id, damage in damage_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
+        if entity_game_id in entity_blacklist:
+            continue
+
+        entity_damage.setdefault(entity_game_id, 0)
+        entity_damage[entity_game_id] += damage
+
+    kill_sql = ("SELECT entity_game_id, COUNT(entity_game_id) "
+                "FROM kill_info "
+                "INNER JOIN entity "
+                "ON entity.entity_id = kill_info.killed_entity_id "
+                "WHERE mission_id NOT IN "
+                "(SELECT mission_id FROM mission_invalid) "
+                "GROUP BY entity_game_id")
+    cursor.execute(kill_sql)
+
+    kill_data: list[tuple[str, int]] = cursor.fetchall()
+
+    entity_kill = {}
+
+    for entity_game_id, kill_count in kill_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
+        if entity_game_id in entity_blacklist:
+            continue
+
+        entity_kill.setdefault(entity_game_id, 0)
+        entity_kill[entity_game_id] += kill_count
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "damage": entity_damage,
+            "kill": entity_kill,
+            "entityMapping": entity_mapping
+        }
     }
