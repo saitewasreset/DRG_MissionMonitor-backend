@@ -692,6 +692,22 @@ def update_essential():
     entity_combine = current_app.config["entity_combine"]
     kpi_config = current_app.config["kpi"]
 
+    mission_sql = "SELECT mission_id FROM mission"
+    cursor = db.cursor()
+    cursor.execute(mission_sql)
+
+    mission_list = cursor.fetchall()
+
+    if mission_list is None or len(mission_list) == 0:
+        end_time = time.time()
+        return {
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "time_ms": (end_time - begin_time) * 1000
+            }
+        }
+
     update_gamma(db, r, entity_blacklist)
     kpi_update_character_factor(db, r, entity_blacklist, entity_combine, kpi_config)
     kpi_update_player_kpi(db, r, entity_blacklist, entity_combine, kpi_config)
