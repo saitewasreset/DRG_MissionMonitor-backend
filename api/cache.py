@@ -146,38 +146,50 @@ def kpi_update_character_factor(db: mariadb.Connection, r: redis.client.Redis, e
 
     gamma_info = get_gamma_cached(db, r, entity_blacklist)
 
-    valid_mission_list_sql = ("SELECT mission_id "
+    valid_mission_list_sql = ("SELECT mission_id, mission_time "
                               "FROM mission "
                               "WHERE mission_id NOT IN "
                               "(SELECT mission_id FROM mission_invalid)")
 
     cursor.execute(valid_mission_list_sql)
 
-    valid_mission_list = [x[0] for x in cursor.fetchall()]
+    mission_data: list[tuple[int, int]] = cursor.fetchall()
 
-    player_character_sql = ("SELECT mission_id, player_name, hero_game_id, character_promotion "
+    valid_mission_list = [x[0] for x in mission_data]
+
+    mission_id_to_mission_time = {x[0]: x[1] for x in mission_data}
+
+    player_character_sql = ("SELECT mission_id, player_name, hero_game_id, character_promotion, present_time "
                             "FROM player_info "
                             "INNER JOIN player "
                             "ON player.player_id = player_info.player_id "
                             "INNER JOIN hero "
                             "ON hero.hero_id = player_info.hero_id")
     cursor.execute(player_character_sql)
-    player_character_data: list[tuple[int, str, str, int]] = cursor.fetchall()
+    player_character_data: list[tuple[int, str, str, int, int]] = cursor.fetchall()
 
-    mission_player_to_character: dict[tuple[int, str], tuple[str, int]] = {}
+    # (mission_id, player_name) -> (hero_game_id, character_promotion, player_index)
+    mission_player_to_character: dict[tuple[int, str], tuple[str, int, float]] = {}
 
     # (character, subtype) -> promotion_class -> player_name -> [raw_kpi]
     raw_kpi_by_character: dict[tuple[str, str], dict[int, dict[str, list[float]]]] = {}
 
-    for mission_id, player_name, hero_game_id, character_promotion in player_character_data:
-        mission_player_to_character[(mission_id, player_name)] = (hero_game_id, character_promotion)
+    for mission_id, player_name, hero_game_id, character_promotion, present_time in player_character_data:
+        if mission_id in valid_mission_list:
+            player_index = present_time / mission_id_to_mission_time[mission_id]
+            mission_player_to_character[(mission_id, player_name)] = (hero_game_id, character_promotion, player_index)
 
     for mission_id in valid_mission_list:
         mission_kpi = calc_mission_kpi(db, r, kpi_config, mission_id, entity_blacklist, entity_combine, gamma_info)
 
         for sub_kpi in mission_kpi:
             player_name = sub_kpi["playerName"]
-            player_character, character_promotion = mission_player_to_character[(mission_id, sub_kpi["playerName"])]
+            player_character, character_promotion, player_index = (
+                mission_player_to_character)[(mission_id, sub_kpi["playerName"])]
+
+            if player_index < 0.6:
+                continue
+
             character_promotion_class = get_promotion_class(character_promotion)
             raw_kpi = sub_kpi["rawKPI"]
             subtype_id: str = sub_kpi["subtypeId"]
