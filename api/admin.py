@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, request
 from api.db import get_db, get_redis
-from api.cache import update_gamma, kpi_update_character_factor, kpi_update_player_kpi
+from api.cache import (update_gamma, kpi_update_character_factor, kpi_update_player_kpi,
+                       update_damage_damage, update_damage_weapon, update_damage_character, update_damage_entity)
 import json
 import os
 import re
@@ -711,6 +712,45 @@ def update_essential():
     update_gamma(db, r, entity_blacklist)
     kpi_update_character_factor(db, r, entity_blacklist, entity_combine, kpi_config)
     kpi_update_player_kpi(db, r, entity_blacklist, entity_combine, kpi_config)
+
+    end_time = time.time()
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "time_ms": (end_time - begin_time) * 1000
+        }
+    }
+
+@bp.route("/update_damage", methods=["GET"])
+def update_damage():
+    begin_time = time.time()
+    db = get_db()
+    r = get_redis()
+    entity_blacklist = current_app.config["entity_blacklist"]
+    entity_combine = current_app.config["entity_combine"]
+    kpi_config = current_app.config["kpi"]
+
+    mission_sql = "SELECT mission_id FROM mission"
+    cursor = db.cursor()
+    cursor.execute(mission_sql)
+
+    mission_list = cursor.fetchall()
+
+    if mission_list is None or len(mission_list) == 0:
+        end_time = time.time()
+        return {
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "time_ms": (end_time - begin_time) * 1000
+            }
+        }
+
+    update_damage_damage(db, r)
+    update_damage_weapon(db, r)
+    update_damage_character(db, r)
+    update_damage_entity(db, r)
 
     end_time = time.time()
     return {
