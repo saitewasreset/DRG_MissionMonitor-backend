@@ -246,10 +246,10 @@ def kpi_update_character_factor(db: mariadb.Connection, r: redis.client.Redis, e
 
     for data in result.values():
         for i in range(0, 7):
-            if data[i]["median"] == 0.0 or standard_data[i]["median"] == 0.0:
+            if data[i]["average"] == 0.0 or standard_data[i]["average"] == 0.0:
                 factor = 0.0
             else:
-                factor = standard_data[i]["median"] / data[i]["median"]
+                factor = standard_data[i]["average"] / data[i]["average"]
             data[i]["factor"] = factor
 
     r.set("kpi_character_factor", json.dumps(result))
