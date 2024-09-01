@@ -790,8 +790,6 @@ def update_damage_entity(db: mariadb.Connection, r: redis.client.Redis):
     entity_blacklist: list[str] = current_app.config["entity_blacklist"]
     entity_combine: dict[str, str] = current_app.config["entity_combine"]
 
-    entity_mapping: dict[str, str] = current_app.config["entity"]
-
     damage_sql = ("SELECT entity_game_id, SUM(damage) "
                   "FROM damage "
                   "INNER JOIN entity "

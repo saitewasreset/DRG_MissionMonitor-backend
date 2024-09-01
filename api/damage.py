@@ -63,8 +63,8 @@ def get_damage_by_entity():
         "code": 200,
         "message": "Success",
         "data": {
-            "damage": result[1],
-            "kill": result[0],
+            "damage": result[0],
+            "kill": result[1],
             "entityMapping": current_app.config["entity"]
         }
     }
