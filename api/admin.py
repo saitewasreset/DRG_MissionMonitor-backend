@@ -1,7 +1,8 @@
 from flask import Blueprint, current_app, request
 from api.db import get_db, get_redis
 from api.cache import (update_gamma, kpi_update_character_factor, kpi_update_player_kpi,
-                       update_damage_damage, update_damage_weapon, update_damage_character, update_damage_entity)
+                       update_damage_damage, update_damage_weapon, update_damage_character, update_damage_entity,
+                       do_update_mission_kpi, do_update_general_general)
 import json
 import os
 import re
@@ -35,7 +36,8 @@ def add_character_mapping():
         "code": 200,
         "message": "Success",
         "data": {}
-   }
+    }
+
 
 @bp.route("/mapping/weapon", methods=["POST"])
 def add_weapon_mapping():
@@ -50,6 +52,7 @@ def add_weapon_mapping():
         "data": {}
     }
 
+
 @bp.route("/mapping/entity", methods=["POST"])
 def add_entity_mapping():
     entity_mapping: dict = request.json
@@ -62,6 +65,7 @@ def add_entity_mapping():
         "message": "Success",
         "data": {}
     }
+
 
 @bp.route("/mapping/entity_combine", methods=["POST"])
 def add_entity_combine():
@@ -76,6 +80,7 @@ def add_entity_combine():
         "data": {}
     }
 
+
 @bp.route("/mapping/resource", methods=["POST"])
 def add_resource_mapping():
     resource_mapping: dict = request.json
@@ -89,6 +94,7 @@ def add_resource_mapping():
         "data": {}
     }
 
+
 @bp.route("/mapping/entity_blacklist", methods=["POST"])
 def add_entity_blacklist():
     entity_blacklist: dict = request.json
@@ -101,6 +107,7 @@ def add_entity_blacklist():
         "message": "Success",
         "data": {}
     }
+
 
 @bp.route("/mapping/weapon_combine", methods=["POST"])
 def add_weapon_combine():
@@ -129,6 +136,7 @@ def add_weapon_hero():
         "data": {}
     }
 
+
 @bp.route("/kpi", methods=["POST"])
 def add_kpi():
     kpi: dict = request.json
@@ -141,6 +149,7 @@ def add_kpi():
         "message": "Success",
         "data": {}
     }
+
 
 @bp.route("/mission_list", methods=["GET"])
 def get_mission_list():
@@ -189,7 +198,6 @@ def load_mission():
 
         return mission_type_id[0]
 
-
     def load_entity_map(db):
         cursor = db.cursor()
 
@@ -228,7 +236,6 @@ def load_mission():
 
         weapon_map[weapon_game_id] = weapon_id
 
-
     def load_hero(db):
         cursor = db.cursor()
 
@@ -257,7 +264,6 @@ def load_mission():
 
         player_map[player_name] = player_id
 
-
     def load_resource(db):
         cursor = db.cursor()
 
@@ -280,6 +286,7 @@ def load_mission():
             return 5
         else:
             return 6
+
     def add_resource(db, resource_game_id):
         cursor = db.cursor()
 
@@ -292,7 +299,8 @@ def load_mission():
 
     def _load_mission(db, log, last_mission_id):
         cursor = db.cursor()
-        mission_info, player_info_list, damage_info_list, killed_info_list, resource_info_list, supply_info_list = log.split("______")
+        mission_info, player_info_list, damage_info_list, killed_info_list, resource_info_list, supply_info_list = log.split(
+            "______")
 
         mission_info = mission_info.strip().split("|")
 
@@ -566,7 +574,7 @@ def load_mission():
                 continue
 
             if resource_player not in player_map:
-                add_player(db, player_name)
+                add_player(db, resource_player)
             resource_player_id = player_map[resource_player]
 
             record_resource = resource_info_split[2]
@@ -640,6 +648,7 @@ def load_mission():
         "data": {}
     }
 
+
 @bp.route("/load_friends", methods=["POST"])
 def load_friends():
     friends_list: list[str] = request.json
@@ -665,6 +674,7 @@ def load_friends():
         "data": {}
     }
 
+
 @bp.route("/load_hero", methods=["POST"])
 def load_hero():
     hero_list: list[str] = request.json
@@ -683,6 +693,7 @@ def load_hero():
         "message": "Success",
         "data": {}
     }
+
 
 @bp.route("/update_essential", methods=["GET"])
 def update_essential():
@@ -722,14 +733,12 @@ def update_essential():
         }
     }
 
+
 @bp.route("/update_damage", methods=["GET"])
 def update_damage():
     begin_time = time.time()
     db = get_db()
     r = get_redis()
-    entity_blacklist = current_app.config["entity_blacklist"]
-    entity_combine = current_app.config["entity_combine"]
-    kpi_config = current_app.config["kpi"]
 
     mission_sql = "SELECT mission_id FROM mission"
     cursor = db.cursor()
@@ -751,6 +760,74 @@ def update_damage():
     update_damage_weapon(db, r)
     update_damage_character(db, r)
     update_damage_entity(db, r)
+
+    end_time = time.time()
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "time_ms": (end_time - begin_time) * 1000
+        }
+    }
+
+
+@bp.route("/update_mission_kpi", methods=["GET"])
+def update_mission_kpi():
+    begin_time = time.time()
+    db = get_db()
+    r = get_redis()
+
+    mission_sql = "SELECT mission_id FROM mission"
+    cursor = db.cursor()
+    cursor.execute(mission_sql)
+
+    mission_list = cursor.fetchall()
+
+    if mission_list is None or len(mission_list) == 0:
+        end_time = time.time()
+        return {
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "time_ms": (end_time - begin_time) * 1000
+            }
+        }
+
+    for mission_id in [x[0] for x in mission_list]:
+        do_update_mission_kpi(db, r, mission_id)
+
+    end_time = time.time()
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {
+            "time_ms": (end_time - begin_time) * 1000
+        }
+    }
+
+@bp.route("/update_general", methods=["GET"])
+def update_general():
+    begin_time = time.time()
+    db = get_db()
+    r = get_redis()
+
+    mission_sql = "SELECT mission_id FROM mission"
+    cursor = db.cursor()
+    cursor.execute(mission_sql)
+
+    mission_list = cursor.fetchall()
+
+    if mission_list is None or len(mission_list) == 0:
+        end_time = time.time()
+        return {
+            "code": 200,
+            "message": "Success",
+            "data": {
+                "time_ms": (end_time - begin_time) * 1000
+            }
+        }
+
+    do_update_general_general(db, r)
 
     end_time = time.time()
     return {

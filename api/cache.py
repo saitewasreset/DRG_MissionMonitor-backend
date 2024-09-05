@@ -3,9 +3,10 @@ import redis
 import json
 import numpy
 from api.tools import calc_gamma_info, get_promotion_class, calc_mission_kpi, character_game_id_to_id, \
-    character_id_to_game_id_subtype
+    character_id_to_game_id_subtype, get_regular_difficulty
 from flask import current_app
 from api.general import get_character_valid_count
+
 
 # dep: mission_list, entity_black_list
 def update_gamma(db: mariadb.Connection, r: redis.client.Redis, entity_blacklist: list[str]):
@@ -180,7 +181,7 @@ def kpi_update_character_factor(db: mariadb.Connection, r: redis.client.Redis, e
             mission_player_to_character[(mission_id, player_name)] = (hero_game_id, character_promotion, player_index)
 
     for mission_id in valid_mission_list:
-        mission_kpi = calc_mission_kpi(db, r, kpi_config, mission_id, entity_blacklist, entity_combine, gamma_info)
+        mission_kpi = get_mission_kpi_cached(db, r, mission_id)
 
         for sub_kpi in mission_kpi:
             player_name = sub_kpi["playerName"]
@@ -270,7 +271,8 @@ def kpi_update_character_factor(db: mariadb.Connection, r: redis.client.Redis, e
     return result
 
 
-def kpi_update_player_kpi(db: mariadb.Connection, r: redis.client.Redis, entity_blacklist: list[str], entity_combine: dict[str, str], kpi_info: dict[str, any]):
+def kpi_update_player_kpi(db: mariadb.Connection, r: redis.client.Redis, entity_blacklist: list[str],
+                          entity_combine: dict[str, str], kpi_info: dict[str, any]):
     cursor = db.cursor()
 
     gamma_info = get_gamma_cached(db, r, entity_blacklist)
@@ -317,7 +319,8 @@ def kpi_update_player_kpi(db: mariadb.Connection, r: redis.client.Redis, entity_
         mission_to_player_to_time.setdefault(mission_id, {})[player_name] = present_time
         mission_to_player_to_promotion.setdefault(mission_id, {})[player_name] = promotion_times
 
-    character_factor: dict[str, any] = get_kpi_character_factor_cached(db, r, entity_blacklist, entity_combine, kpi_info)
+    character_factor: dict[str, any] = get_kpi_character_factor_cached(db, r, entity_blacklist, entity_combine,
+                                                                       kpi_info)
 
     # player_name -> character_id ->
     # {count: float, kpi: float, mission_kpi_list:
@@ -327,7 +330,7 @@ def kpi_update_player_kpi(db: mariadb.Connection, r: redis.client.Redis, entity_
     scout_type_b_player_name = current_app.config["scout_type_b_player_name"]
 
     for mission_id in mission_id_list:
-        mission_kpi = calc_mission_kpi(db, r, kpi_info, mission_id, entity_blacklist, entity_combine, gamma_info)
+        mission_kpi = get_mission_kpi_cached(db, r, mission_id)
         for character_info in mission_kpi:
             player_name = character_info["playerName"]
             character_game_id = character_info["heroGameId"]
@@ -402,6 +405,7 @@ def get_kpi_player_kpi_cached(db: mariadb.Connection, r: redis.client.Redis, ent
         return kpi_update_player_kpi(db, r, entity_blacklist, entity_combine, kpi_config)
 
     return json.loads(data)
+
 
 def update_damage_damage(db: mariadb.Connection, r: redis.client.Redis):
     cursor = db.cursor()
@@ -585,6 +589,7 @@ def get_damage_damage_cached(db: mariadb.Connection, r: redis.client.Redis):
 
     return json.loads(data)
 
+
 def update_damage_weapon(db: mariadb.Connection, r: redis.client.Redis):
     cursor = db.cursor()
 
@@ -676,6 +681,7 @@ def get_damage_weapon_cached(db: mariadb.Connection, r: redis.client.Redis):
         return update_damage_weapon(db, r)
 
     return json.loads(data)
+
 
 def update_damage_character(db: mariadb.Connection, r: redis.client.Redis):
     cursor = db.cursor()
@@ -777,12 +783,14 @@ def update_damage_character(db: mariadb.Connection, r: redis.client.Redis):
 
     return character_damage
 
+
 def get_damage_character_cached(db: mariadb.Connection, r: redis.client.Redis):
     data: str | None = r.get("damage_character")
     if data is None:
         return update_damage_character(db, r)
 
     return json.loads(data)
+
 
 def update_damage_entity(db: mariadb.Connection, r: redis.client.Redis):
     cursor = db.cursor()
@@ -840,9 +848,376 @@ def update_damage_entity(db: mariadb.Connection, r: redis.client.Redis):
 
     return entity_damage, entity_kill
 
+
 def get_damage_entity_cached(db: mariadb.Connection, r: redis.client.Redis):
     data: str | None = r.get("damage_entity")
     if data is None:
         return update_damage_entity(db, r)
 
     return json.loads(data)
+
+
+def do_update_mission_kpi(db: mariadb.Connection, r: redis.client.Redis, mission_id: int):
+    # dep: kpi_config, mapping, *gamma_info*
+
+    kpi_info = current_app.config["kpi"]
+    entity_blacklist = current_app.config["entity_blacklist"]
+    entity_combine = current_app.config["entity_combine"]
+
+    gamma_info = get_gamma_cached(db, r, entity_blacklist)
+
+    mission_kpi = calc_mission_kpi(db, r, kpi_info, mission_id, entity_blacklist, entity_combine, gamma_info)
+
+    r.set(f"mission_kpi_{mission_id}", json.dumps(mission_kpi))
+    r.save()
+
+    return mission_kpi
+
+
+def get_mission_kpi_cached(db: mariadb.Connection, r: redis.client.Redis, mission_id: int):
+    data: str | None = r.get(f"mission_kpi_{mission_id}")
+    if data is None:
+        return do_update_mission_kpi(db, r, mission_id)
+
+    return json.loads(data)
+
+def do_update_general_general(db: mariadb.Connection, r: redis.client.Redis):
+    cursor = db.cursor()
+
+    invalid_sql = ("SELECT mission_id "
+                   "FROM mission_invalid")
+
+    cursor.execute(invalid_sql)
+    data = cursor.fetchall()
+    if data:
+        invalid_mission = [item[0] for item in data]
+    else:
+        invalid_mission = []
+
+    mission_sql = ("SELECT mission_id, mission_time, mission_type_game_id, "
+                   "hazard_id, result, reward_credit, total_supply_count "
+                   "FROM mission "
+                   "INNER JOIN mission_type "
+                   "ON mission.mission_type_id = mission_type.mission_type_id "
+                   "ORDER BY begin_timestamp")
+    cursor.execute(mission_sql)
+    data: list[tuple[int, int, int, int, int, float, int]] = cursor.fetchall()
+
+    if data is None:
+        data = []
+
+    total_count = len(data)
+    valid_count = len(data) - len(invalid_mission)
+    valid_list: list[tuple[int, int, int, int, int, float, int]] = []
+    valid_id_list: list[int] = []
+
+    recent_window_len = 10 if valid_count * 0.1 < 10 else int(valid_count * 0.1)
+
+    for mission_data in data:
+        if mission_data[0] not in invalid_mission:
+            valid_list.append(mission_data)
+            valid_id_list.append(mission_data[0])
+
+    total_mission_time = 0
+    prev_mission_time = 0
+    recent_mission_time = 0
+
+    total_pass_count = 0
+    prev_pass_count = 0
+    recent_pass_count = 0
+
+    total_difficulty_count = 0.0
+    prev_difficulty_count = 0.0
+    recent_difficulty_count = 0.0
+
+    mission_id_to_supply_count: dict[int, int] = {}
+
+    total_reward_credit = 0.0
+    prev_reward_credit = 0.0
+    recent_reward_credit = 0.0
+
+    prev_window = valid_count - recent_window_len
+    current_mission_count = 0
+
+    prev_mission_id_list: list[int] = []
+    prev_count = 0
+
+    for mission_id, mission_time, mission_type_game_id, hazard_id, result, reward_credit, supply_count in valid_list:
+        current_mission_count += 1
+        if current_mission_count <= prev_window:
+            in_prev = True
+            prev_count += 1
+            prev_mission_id_list.append(mission_id)
+        else:
+            in_prev = False
+
+        total_mission_time += mission_time
+        if in_prev:
+            prev_mission_time += mission_time
+        else:
+            recent_mission_time += mission_time
+
+        if result == 0:
+            total_pass_count += 1
+            if in_prev:
+                prev_pass_count += 1
+            else:
+                recent_pass_count += 1
+
+        current_difficulty = get_regular_difficulty(hazard_id)
+        total_difficulty_count += current_difficulty
+        if in_prev:
+            prev_difficulty_count += current_difficulty
+        else:
+            recent_difficulty_count += current_difficulty
+
+        mission_id_to_supply_count[mission_id] = supply_count
+
+        total_reward_credit += reward_credit
+        if in_prev:
+            prev_reward_credit += reward_credit
+        else:
+            recent_reward_credit += reward_credit
+
+    friend_sql = "SELECT player_id FROM player WHERE friend = 1"
+    cursor.execute(friend_sql)
+    data = cursor.fetchall()
+    if data:
+        friend_list = [item[0] for item in data]
+    else:
+        friend_list = []
+
+    valid_player_info_sql = ("SELECT begin_timestamp, player_info.mission_id, player_id, "
+                             "hero_id, kill_num, death_num, minerals_mined "
+                             "FROM player_info "
+                             "INNER JOIN mission "
+                             "ON mission.mission_id = player_info.mission_id "
+                             "WHERE player_info.mission_id NOT IN "
+                             "(SELECT mission_id FROM mission_invalid) "
+                             "ORDER BY begin_timestamp")
+    cursor.execute(valid_player_info_sql)
+    player_info_data: list[tuple[int, int, int, int, int, int, float]] = cursor.fetchall()
+
+    player_id_set: set[int] = set()
+    open_room_mission_id_set: set[int] = set()
+
+    mission_id_to_kill_num: dict[int, int] = {}
+    mission_id_to_death_num: dict[int, int] = {}
+    mission_id_to_minerals_mined: dict[int, float] = {}
+    mission_id_to_player_count: dict[int, int] = {}
+
+    if player_info_data is None:
+        player_info_data = []
+
+    for begin_timestamp, mission_id, player_id, hero_id, kill_num, death_num, minerals_mined in player_info_data:
+
+        player_id_set.add(player_id)
+
+        if player_id not in friend_list:
+            open_room_mission_id_set.add(mission_id)
+
+        if mission_id not in mission_id_to_player_count:
+            mission_id_to_player_count[mission_id] = 1
+        else:
+            mission_id_to_player_count[mission_id] += 1
+
+        if mission_id not in mission_id_to_kill_num:
+            mission_id_to_kill_num[mission_id] = kill_num
+        else:
+            mission_id_to_kill_num[mission_id] += kill_num
+
+        if mission_id not in mission_id_to_death_num:
+            mission_id_to_death_num[mission_id] = death_num
+        else:
+            mission_id_to_death_num[mission_id] += death_num
+
+        if mission_id not in mission_id_to_minerals_mined:
+            mission_id_to_minerals_mined[mission_id] = minerals_mined
+        else:
+            mission_id_to_minerals_mined[mission_id] += minerals_mined
+
+    total_open_room_count = 0
+    prev_open_room_count = 0
+    recent_open_room_count = 0
+
+    total_death_num_per_player = 0
+    prev_death_num_per_player = 0
+    recent_death_num_per_player = 0
+
+    total_supply_count_per_player = 0
+    prev_supply_count_per_player = 0
+    recent_supply_count_per_player = 0
+
+    for mission_id in valid_id_list:
+        if mission_id in prev_mission_id_list:
+            in_prev = True
+        else:
+            in_prev = False
+
+        if mission_id in open_room_mission_id_set:
+            total_open_room_count += 1
+            if in_prev:
+                prev_open_room_count += 1
+            else:
+                recent_open_room_count += 1
+
+        total_death_num_per_player += mission_id_to_death_num[mission_id] / mission_id_to_player_count[mission_id]
+        total_supply_count_per_player += mission_id_to_supply_count[mission_id] / mission_id_to_player_count[mission_id]
+
+        if in_prev:
+            prev_death_num_per_player += mission_id_to_death_num[mission_id] / mission_id_to_player_count[mission_id]
+            prev_supply_count_per_player += mission_id_to_supply_count[mission_id] / mission_id_to_player_count[
+                mission_id]
+        else:
+            recent_death_num_per_player += mission_id_to_death_num[mission_id] / mission_id_to_player_count[mission_id]
+            recent_supply_count_per_player += mission_id_to_supply_count[mission_id] / mission_id_to_player_count[
+                mission_id]
+    entity_blacklist: list[str] = current_app.config["entity_blacklist"]
+    entity_combine: dict[str, str] = current_app.config["entity_combine"]
+
+    total_kill_num = 0
+    prev_kill_num = 0
+    recent_kill_num = 0
+
+    valid_kill_sql = ("SELECT mission_id, entity_game_id "
+                      "FROM kill_info "
+                      "INNER JOIN entity "
+                      "ON entity.entity_id = killed_entity_id "
+                      "WHERE mission_id NOT IN "
+                      "(SELECT mission_id FROM mission_invalid)")
+
+    cursor.execute(valid_kill_sql)
+    kill_data: list[tuple[int, str]] = cursor.fetchall()
+    if kill_data is None:
+        kill_data = []
+
+    for mission_id, entity_game_id in kill_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
+        if entity_game_id not in entity_blacklist:
+            total_kill_num += 1
+            if mission_id in prev_mission_id_list:
+                prev_kill_num += 1
+            else:
+                recent_kill_num += 1
+
+    total_minerals = 0.0
+    prev_minerals = 0.0
+    recent_minerals = 0.0
+
+    minerals_sql = ("SELECT mission_id, SUM(amount) "
+                    "FROM resource_info "
+                    "WHERE mission_id NOT IN "
+                    "(SELECT mission_id FROM mission_invalid) "
+                    "GROUP BY mission_id")
+
+    cursor.execute(minerals_sql)
+    minerals_data: list[tuple[int, float]] = cursor.fetchall()
+    if minerals_data is None:
+        minerals_data = []
+
+    for mission_id, amount in minerals_data:
+        total_minerals += amount
+        if mission_id in prev_mission_id_list:
+            prev_minerals += amount
+        else:
+            recent_minerals += amount
+
+    valid_damage_sql = ("SELECT mission_id, entity_game_id, damage "
+                        "FROM damage "
+                        "INNER JOIN entity "
+                        "ON entity.entity_id = damage.taker_id "
+                        "WHERE causer_type = 1 "
+                        "AND taker_type != 1 "
+                        "AND mission_id NOT IN "
+                        "(SELECT mission_id FROM mission_invalid)")
+    cursor.execute(valid_damage_sql)
+    damage_data: list[tuple[int, str, float]] = cursor.fetchall()
+
+    if damage_data is None:
+        damage_data = []
+
+    mission_id_to_damage: dict[int, float] = {}
+
+    for mission_id, entity_game_id, damage in damage_data:
+        entity_game_id = entity_combine.get(entity_game_id, entity_game_id)
+        if entity_game_id not in entity_blacklist:
+            if mission_id not in mission_id_to_damage:
+                mission_id_to_damage[mission_id] = damage
+            else:
+                mission_id_to_damage[mission_id] += damage
+
+    total_damage = sum([y for x, y in mission_id_to_damage.items()])
+    prev_damage = sum([y for x, y in mission_id_to_damage.items() if x in prev_mission_id_list])
+    recent_damage = total_damage - prev_damage
+
+    result = {
+        "gameCount": total_count,
+        "validRate": valid_count / total_count,
+        "totalMissionTime": total_mission_time,
+        "averageMissionTime": {
+            "total": total_mission_time / valid_count,
+            "prev": prev_mission_time / prev_count if prev_count != 0 else recent_mission_time / recent_window_len,
+            "recent": recent_mission_time / recent_window_len
+        },
+        "uniquePlayerCount": len(player_id_set),
+        "openRoomRate": {
+            "total": total_open_room_count / valid_count,
+            "prev": prev_open_room_count / prev_count if prev_count != 0 else recent_open_room_count / recent_window_len,
+            "recent": recent_open_room_count / recent_window_len
+        },
+        "passRate": {
+            "total": total_pass_count / valid_count,
+            "prev": prev_pass_count / prev_count if prev_count != 0 else recent_pass_count / recent_window_len,
+            "recent": recent_pass_count / recent_window_len
+        },
+        "averageDifficulty": {
+            "total": total_difficulty_count / valid_count,
+            "prev": prev_difficulty_count / prev_count if prev_count != 0 else recent_difficulty_count / recent_window_len,
+            "recent": recent_difficulty_count / recent_window_len
+        },
+        "averageKillNum": {
+            "total": total_kill_num / valid_count,
+            "prev": prev_kill_num / prev_count if prev_count != 0 else recent_kill_num / recent_window_len,
+            "recent": recent_kill_num / recent_window_len
+        },
+        "averageDamage": {
+            "total": total_damage / valid_count,
+            "prev": prev_damage / prev_count if prev_count != 0 else recent_damage / recent_window_len,
+            "recent": recent_damage / recent_window_len
+        },
+        "averageDeathNumPerPlayer": {
+            "total": total_death_num_per_player / valid_count,
+            "prev": prev_death_num_per_player / prev_count if prev_count != 0 else recent_death_num_per_player / recent_window_len,
+            "recent": recent_death_num_per_player / recent_window_len
+        },
+        "averageMineralsMined": {
+            "total": total_minerals / valid_count,
+            "prev": prev_minerals / prev_count if prev_count != 0 else recent_minerals / recent_window_len,
+            "recent": recent_minerals / recent_window_len
+        },
+        "averageSupplyCountPerPlayer": {
+            "total": total_supply_count_per_player / valid_count,
+            "prev": prev_supply_count_per_player / prev_count if prev_count != 0 else recent_supply_count_per_player / recent_window_len,
+            "recent": recent_supply_count_per_player / recent_window_len,
+        },
+        "averageRewardCredit": {
+            "total": total_reward_credit / valid_count,
+            "prev": prev_reward_credit / prev_count if prev_count != 0 else recent_reward_credit / recent_window_len,
+            "recent": recent_reward_credit / recent_window_len
+        }
+
+    }
+
+    r.set("general_general", json.dumps(result))
+    r.save()
+
+    return result
+
+
+def get_general_general_cached(db: mariadb.Connection, r: redis.client.Redis):
+    data: str | None = r.get("general_general")
+    if data is None:
+        return do_update_general_general(db, r)
+
+    return json.loads(data)
+

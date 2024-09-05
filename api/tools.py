@@ -1,6 +1,7 @@
 import mariadb
 import redis
 
+
 def apply_weight_table(source_table: dict[str, float], weight_table: dict[str, float],
                        entity_black_list: list[str], entity_combine: dict[str, str]) -> float:
     result = 0.0
@@ -38,6 +39,7 @@ def get_promotion_class(promotion_times: int) -> int:
     else:
         return 6
 
+
 def character_game_id_to_id(character_game_id: str, subtype_id: str) -> int:
     if character_game_id == "DRILLER":
         return 0
@@ -53,6 +55,7 @@ def character_game_id_to_id(character_game_id: str, subtype_id: str) -> int:
     else:
         return -1
 
+
 def character_id_to_game_id_subtype(character_id: int) -> (str, str):
     if character_id == 0:
         return "DRILLER", "-"
@@ -64,6 +67,7 @@ def character_id_to_game_id_subtype(character_id: int) -> (str, str):
         return "SCOUT", "辅助型"
     else:
         return "SCOUT", "输出型"
+
 
 def calc_gamma_info(data: dict, character_to_game_count: dict[str, float], element: str):
     least = 1e9
@@ -84,6 +88,7 @@ def calc_gamma_info(data: dict, character_to_game_count: dict[str, float], eleme
         }
 
     return result
+
 
 def calc_mission_kpi(db: mariadb.Connection, r: redis.client.Redis, kpi_info: dict[str, any], mission_id: int,
                      entity_black_list: list[str], entity_combine: dict[str, str], gamma_info: dict[str, any]):
@@ -445,3 +450,22 @@ def calc_mission_kpi(db: mariadb.Connection, r: redis.client.Redis, kpi_info: di
                 }
             )
     return result
+
+
+def get_regular_difficulty(hazard_id: int) -> float:
+    if 1 <= hazard_id <= 5:
+        return hazard_id
+    elif hazard_id == 100:
+        return 3
+    elif hazard_id == 101:
+        return 3.5
+    elif hazard_id == 102:
+        return 3.5
+    elif hazard_id == 103:
+        return 4.5
+    elif hazard_id == 104:
+        return 5
+    elif hazard_id == 105:
+        return 5.5
+    else:
+        return 5

@@ -1,7 +1,6 @@
 from flask import Blueprint, current_app
 from api.db import get_db, get_redis
 from api.cache import get_gamma_cached, get_kpi_character_factor_cached, get_kpi_player_kpi_cached
-from api.tools import calc_mission_kpi, get_promotion_class, character_game_id_to_id, character_id_to_game_id_subtype
 
 bp = Blueprint("kpi", __name__, url_prefix="/kpi")
 

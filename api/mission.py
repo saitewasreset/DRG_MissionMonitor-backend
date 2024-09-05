@@ -1,7 +1,6 @@
 from flask import Blueprint, current_app
 from api.db import get_db, get_redis
-from api.tools import calc_mission_kpi
-from api.cache import get_gamma_cached
+from api.cache import get_gamma_cached, get_mission_kpi_cached
 
 bp = Blueprint("mission", __name__, url_prefix="/mission")
 
@@ -589,11 +588,6 @@ def get_mission_kpi(mission_id: int):
 
     cursor = db.cursor()
 
-    gamma_info = get_gamma_cached(db, r, current_app.config["entity_blacklist"])
-
-    entity_blacklist: list[str] = current_app.config["entity_blacklist"]
-    entity_combine: dict[str, str] = current_app.config["entity_combine"]
-
     player_info_sql = ("SELECT player_info.player_id, player_name, hero_game_id, revive_num, death_num "
                        "FROM player_info "
                        "INNER JOIN player "
@@ -611,9 +605,7 @@ def get_mission_kpi(mission_id: int):
             "message": "Mission not found(id = {})".format(mission_id)
         }
 
-    kpi_info: dict[str, any] = current_app.config["kpi"]
-
-    result = calc_mission_kpi(db, r, kpi_info, mission_id, entity_blacklist, entity_combine, gamma_info)
+    result = get_mission_kpi_cached(db, r, mission_id)
 
     return {
         "code": 200,
