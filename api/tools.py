@@ -469,3 +469,28 @@ def get_regular_difficulty(hazard_id: int) -> float:
         return 5.5
     else:
         return 5
+
+def get_character_valid_count(db: mariadb.Connection):
+    cursor = db.cursor()
+    character_game_count_sql = ("SELECT hero_game_id, present_time, mission_time "
+                                "FROM player_info "
+                                "INNER JOIN mission "
+                                "ON player_info.mission_id = mission.mission_id "
+                                "INNER JOIN hero "
+                                "ON player_info.hero_id = hero.hero_id "
+                                "WHERE player_info.mission_id NOT IN "
+                                "(SELECT mission_id FROM mission_invalid)")
+
+    cursor.execute(character_game_count_sql)
+
+    game_count_data: list[tuple[str, int, int]] = cursor.fetchall()
+
+    character_to_game_count: dict[str, float] = {}
+
+    for character_game_id, present_time, mission_time in game_count_data:
+        if present_time == 0:
+            present_time = mission_time
+        character_to_game_count[character_game_id] = (
+                character_to_game_count.get(character_game_id, 0) + present_time / mission_time)
+
+    return character_to_game_count

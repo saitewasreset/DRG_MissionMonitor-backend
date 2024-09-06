@@ -5,7 +5,7 @@ import numpy
 from api.tools import calc_gamma_info, get_promotion_class, calc_mission_kpi, character_game_id_to_id, \
     character_id_to_game_id_subtype, get_regular_difficulty
 from flask import current_app
-from api.general import get_character_valid_count
+from api.tools import get_character_valid_count
 
 
 # dep: mission_list, entity_black_list
