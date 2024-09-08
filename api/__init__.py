@@ -82,6 +82,61 @@ def create_app() -> Flask:
     except OSError:
         app.config["character"] = {}
 
+    # 0 -- primary, 1 -- secondary
+    app.config["weapon_type"] = {
+        "WPN_FlameThrower": 0,
+        "WPN_Cryospray": 0,
+        "WPN_GooCannon": 0,
+        "WPN_Pistol_A": 1,
+        "WPN_ChargeBlaster": 1,
+        "WPN_MicrowaveGun": 1,
+        "WPN_CombatShotgun": 0,
+        "WPN_SMG_OneHand": 0,
+        "WPN_LockOnRifle": 0,
+        "WPN_GrenadeLauncher": 1,
+        "WPN_LineCutter": 1,
+        "WPN_HeavyParticleCannon": 1,
+        "WPN_Gatling": 0,
+        "WPN_Autocannon": 0,
+        "WPN_MicroMissileLauncher": 0,
+        "WPN_Revolver": 1,
+        "WPN_BurstPistol": 1,
+        "WPN_CoilGun": 1,
+        "WPN_AssaultRifle": 0,
+        "WPN_M1000": 0,
+        "WPN_PlasmaCarbine": 0,
+        "WPN_SawedOffShotgun": 1,
+        "WPN_DualMPs": 1,
+        "WPN_Crossbow": 1,
+    }
+
+    app.config["weapon_order"] = {
+        "WPN_FlameThrower": 0,
+        "WPN_Cryospray": 1,
+        "WPN_GooCannon": 2,
+        "WPN_Pistol_A": 3,
+        "WPN_ChargeBlaster": 4,
+        "WPN_MicrowaveGun": 5,
+        "WPN_CombatShotgun": 6,
+        "WPN_SMG_OneHand": 7,
+        "WPN_LockOnRifle": 8,
+        "WPN_GrenadeLauncher": 9,
+        "WPN_LineCutter": 10,
+        "WPN_HeavyParticleCannon": 11,
+        "WPN_Gatling": 12,
+        "WPN_Autocannon": 13,
+        "WPN_MicroMissileLauncher": 14,
+        "WPN_Revolver": 15,
+        "WPN_BurstPistol": 16,
+        "WPN_CoilGun": 17,
+        "WPN_AssaultRifle": 18,
+        "WPN_M1000": 19,
+        "WPN_PlasmaCarbine": 20,
+        "WPN_SawedOffShotgun": 21,
+        "WPN_DualMPs": 22,
+        "WPN_Crossbow": 23,
+    }
+
     app.config["scout_type_b_player_name"] = \
         ["OHHHH", "火鸡味锅巴", "historia", "KhasAlushird"]
 
