@@ -452,29 +452,35 @@ def load_mission():
             is_causer_enemy = (damage_info_split[7] == "1")
             is_taker_enemy = (damage_info_split[8] == "1")
 
-            matched = re.match("ENE_(.+)_C", record_damage_causer)
-            if matched:
-                damage_causer = "ED_{}".format(matched.group(1))
-                is_causer_enemy = True
-            else:
-                matched = re.match("(.+)_C", record_damage_causer)
+            if not is_causer_player:
+                matched = re.match("ENE_(.+)_C", record_damage_causer)
                 if matched:
-                    damage_causer = matched.group(1)
+                    damage_causer = "ED_{}".format(matched.group(1))
+                    is_causer_enemy = True
                 else:
-                    damage_causer = record_damage_causer
-                is_causer_enemy = False
+                    matched = re.match("(.+)_C", record_damage_causer)
+                    if matched:
+                        damage_causer = matched.group(1)
+                    else:
+                        damage_causer = record_damage_causer
+                    is_causer_enemy = False
+            else:
+                damage_causer = record_damage_causer
 
-            matched = re.match("ENE_(.+)_C", record_damage_taker)
-            if matched:
-                damage_taker = "ED_{}".format(matched.group(1))
-                is_taker_enemy = True
-            else:
-                matched = re.match("(.+)_C", record_damage_taker)
+            if not is_taker_player:
+                matched = re.match("ENE_(.+)_C", record_damage_taker)
                 if matched:
-                    damage_taker = matched.group(1)
+                    damage_taker = "ED_{}".format(matched.group(1))
+                    is_taker_enemy = True
                 else:
-                    damage_taker = record_damage_taker
-                is_taker_enemy = False
+                    matched = re.match("(.+)_C", record_damage_taker)
+                    if matched:
+                        damage_taker = matched.group(1)
+                    else:
+                        damage_taker = record_damage_taker
+                    is_taker_enemy = False
+            else:
+                damage_taker = record_damage_taker
 
             taker_type = 0
             if is_taker_player:
