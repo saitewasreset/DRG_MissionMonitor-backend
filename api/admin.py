@@ -655,6 +655,40 @@ def load_mission():
     }
 
 
+@bp.route("/delete_mission/<int:mission_id>", methods=["GET"])
+def delete_mission(mission_id: int):
+    db = get_db()
+    cursor = db.cursor()
+
+    mission_delete_sql = "DELETE FROM mission WHERE mission_id = ?"
+    cursor.execute(mission_delete_sql, (mission_id,))
+
+    player_info_delete_sql = "DELETE FROM player_info WHERE mission_id = ?"
+    cursor.execute(player_info_delete_sql, (mission_id,))
+
+    damage_delete_sql = "DELETE FROM damage WHERE mission_id = ?"
+    cursor.execute(damage_delete_sql, (mission_id,))
+
+    kill_info_delete_sql = "DELETE FROM kill_info WHERE mission_id = ?"
+    cursor.execute(kill_info_delete_sql, (mission_id,))
+
+    resource_info_delete_sql = "DELETE FROM resource_info WHERE mission_id = ?"
+    cursor.execute(resource_info_delete_sql, (mission_id,))
+
+    supply_info_delete_sql = "DELETE FROM supply_info WHERE mission_id = ?"
+    cursor.execute(supply_info_delete_sql, (mission_id,))
+
+    mission_invalid_delete_sql = "DELETE FROM mission_invalid WHERE mission_id = ?"
+    cursor.execute(mission_invalid_delete_sql, (mission_id,))
+
+    db.commit()
+
+    return {
+        "code": 200,
+        "message": "Success",
+        "data": {}
+    }
+
 @bp.route("/load_friends", methods=["POST"])
 def load_friends():
     friends_list: list[str] = request.json
