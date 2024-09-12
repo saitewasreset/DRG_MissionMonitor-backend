@@ -494,3 +494,11 @@ def get_character_valid_count(db: mariadb.Connection):
                 character_to_game_count.get(character_game_id, 0) + present_time / mission_time)
 
     return character_to_game_count
+
+def calc_rKPI(raw_kpi: float, character_factor: float):
+    if character_factor == 0.0:
+        character_factor = 1.0
+    if raw_kpi < 0:
+        return raw_kpi / character_factor
+    else:
+        return raw_kpi * character_factor if raw_kpi * character_factor <= 1 else 1
