@@ -379,9 +379,20 @@ def kpi_update_player_kpi(db: mariadb.Connection, r: redis.client.Redis, entity_
             mission_kpi_list: list[dict[str, any]] = character_info["missionKPIList"]
 
             character_info["count"] = sum([x["playerIndex"] for x in mission_kpi_list])
-            character_info["KPI"] = (
-                    sum([x["playerIndex"] * x["rawKPI"] * x["characterFactor"] for x in mission_kpi_list])
-                    / character_info["count"])
+
+            kpi_weighted_sum = 0.0
+
+            for x in mission_kpi_list:
+                if x["rawKPI"] < 0:
+                    result = x["playerIndex"] * x["rawKPI"] / x["characterFactor"]
+                else:
+                    intermedia = x["rawKPI"] * x["characterFactor"]
+                    if intermedia > 1:
+                        intermedia = 1
+                    result = x["playerIndex"] * intermedia
+                kpi_weighted_sum += result
+
+            character_info["KPI"] = (kpi_weighted_sum / character_info["count"])
 
             total_count += character_info["count"]
             weighted_sum += character_info["KPI"] * character_info["count"]
