@@ -56,7 +56,7 @@ def character_game_id_to_id(character_game_id: str, subtype_id: str) -> int:
         return -1
 
 
-def character_id_to_game_id_subtype(character_id: int) -> (str, str):
+def character_id_to_game_id_subtype(character_id: int) -> tuple[str, str]:
     if character_id == 0:
         return "DRILLER", "-"
     elif character_id == 1:
