@@ -1,8 +1,10 @@
-# Mission Monitor 后端
+# Mission Monitor 后端（Python）
 
 Mission Monitor，《深岩银河》游戏数据分析一站式解决方案。
 
 [主项目地址](https://github.com/saitewasreset/DRG_MissionMonitor)
+
+**本项目已转向使用[Rust 版本后端](https://github.com/saitewasreset/mission-backend-rs)**
 
 ## API 文档
 
